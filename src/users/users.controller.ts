@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Patch, Query, Param, Delete, 
-UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common'; 
+UseInterceptors, ClassSerializerInterceptor, Session } from '@nestjs/common'; 
+import { AnyCatcher } from 'rxjs/internal/AnyCatcher';
 import { SerializeInterceptor, Serialize } from 'src/interceptors/serialize.interceptor';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -13,16 +14,40 @@ import { UsersService } from './users.service';
 export class UsersController {
    constructor(private userService:UsersService, private authService:AuthService){}
 
+@Get('/colors/:color')
+setColor(@Param('color') color:string, @Session() session:any){
+   session.color = color;
+}
+
+@Get('/colors')
+getColors(@Session() session:any){
+   return session.color;
+}
+
+@Post('/signout')
+signOut(@Session() session:any){
+   session.userId = null;
+}
+
  @Post('/signup')
- createUser(@Body() body: CreateUserDto){
+ async createUser(@Body() body: CreateUserDto, @Session() session:any){
    //  this.userService.create(body.email, body.password)
-   return this.authService.signup(body.email, body.password)
- }
+    const user = await this.authService.signup(body.email, body.password)
+   session.userId = user.id;
+   return user;
+   }
+
+   @Get('/whoami')
+   whoAmI(@Session() session:any){
+      return this.userService.findOne(session.userId)
+   }
 
  @Post('/signin')
- signin(@Body() body:CreateUserDto){
-    return this.authService.signin(body.email, body.password)
- }
+ async signin(@Body() body:CreateUserDto, @Session() session:any){
+    const user = await this.authService.signin(body.email, body.password)
+   session.userId = user.id;
+   return user;
+   }
 
 //@UseInterceptors(new SerializeInterceptor(UserDto))
 // @Serialize(UserDto)
